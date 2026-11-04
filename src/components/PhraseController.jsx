@@ -3,33 +3,35 @@ import { MOTIVATIONAL_PHRASES } from '../utils/phrases';
 
 export function PhraseController({ onPhraseChange }) {
     const [availablePhrases, setAvailablePhrases] = useState([]);
-    const [usedPhrases, setUsedPhrases] = useState(0);
+    const [exhausted, setExhausted] = useState(false);
 
-    // Inicializar el banco de frases al montar el componente
     useEffect(() => {
-        // Barajamos las frases inicialmente para que salgan en orden aleatorio
+        // Inicializamos barajando las frases de forma aleatoria
         const shuffled = [...MOTIVATIONAL_PHRASES].sort(() => Math.random() - 0.5);
         setAvailablePhrases(shuffled);
         if (shuffled.length > 0) {
-            onPhraseChange(shuffled[0]); // Asigna la primera frase automáticamente
+            onPhraseChange(shuffled[0]);
         }
     }, []);
 
     const handleNextPhrase = () => {
         if (availablePhrases.length > 1) {
-            // Tomamos la siguiente frase y la quitamos de las disponibles
-            const nextPhrase = availablePhrases[1];
+            // Tomamos la siguiente, la removemos permanentemente de las disponibles
             const remaining = availablePhrases.slice(1);
             setAvailablePhrases(remaining);
-            setUsedPhrases(usedPhrases + 1);
-            onPhraseChange(nextPhrase);
+            onPhraseChange(remaining[0]);
         } else {
-            // Si se acaban, reiniciamos el ciclo automáticamente y barajamos de nuevo
-            const shuffled = [...MOTIVATIONAL_PHRASES].sort(() => Math.random() - 0.5);
-            setAvailablePhrases(shuffled);
-            setUsedPhrases(0);
-            onPhraseChange(shuffled[0]);
+            setAvailablePhrases([]);
+            setExhausted(true);
+            onPhraseChange("¡Banco de frases agotado! Recargue el archivo phrases.js, jefe.");
         }
+    };
+
+    const handleResetBank = () => {
+        const shuffled = [...MOTIVATIONAL_PHRASES].sort(() => Math.random() - 0.5);
+        setAvailablePhrases(shuffled);
+        setExhausted(false);
+        onPhraseChange(shuffled[0]);
     };
 
     return (
@@ -39,21 +41,35 @@ export function PhraseController({ onPhraseChange }) {
                     3. Enfoque del Mes:
                 </label>
                 <span className="text-xs text-amber-500/70">
-                    {availablePhrases.length} frases restantes
+                    Disponibles: {availablePhrases.length} / {MOTIVATIONAL_PHRASES.length}
                 </span>
             </div>
 
-            <button
-                onClick={handleNextPhrase}
-                className="w-full py-2 mb-2 bg-zinc-800 hover:bg-zinc-700 text-amber-400 font-semibold rounded-lg border border-amber-500/50 transition-all text-sm"
-            >
-                Aleatorizar Frase
-            </button>
+            {!exhausted ? (
+                <button
+                    onClick={handleNextPhrase}
+                    className="w-full py-2 mb-2 bg-zinc-800 hover:bg-zinc-700 text-amber-400 font-semibold rounded-lg border border-amber-500/50 transition-all text-sm cursor-pointer"
+                >
+                    Siguiente Frase (Sin repetir)
+                </button>
+            ) : (
+                <button
+                    onClick={handleResetBank}
+                    className="w-full py-2 mb-2 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-lg transition-all text-sm cursor-pointer"
+                >
+                    Reiniciar / Recargar Banco
+                </button>
+            )}
 
-            {/* Alerta de recarga cuando quedan pocas frases (ej. menos de 5) */}
-            {availablePhrases.length <= 5 && (
-                <p className="text-xs text-red-400 mt-2 text-center animate-pulse">
-                    ⚠️ Quedan pocas frases. ¡Avisa al jefe para recargar el banco!
+            {availablePhrases.length <= 5 && !exhausted && (
+                <p className="text-xs text-amber-400 mt-2 text-center">
+                    Atención: Quedan pocas frases en el banco, jefe.
+                </p>
+            )}
+
+            {exhausted && (
+                <p className="text-xs text-red-500 mt-2 text-center font-bold">
+                    Banco agotado por completo. Es hora de actualizar las frases, jefe.
                 </p>
             )}
         </div>

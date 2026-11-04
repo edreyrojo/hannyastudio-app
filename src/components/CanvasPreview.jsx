@@ -19,6 +19,19 @@ export function CanvasPreview({ image, template, text, motivationalText, preview
         return () => { cancelled = true; };
     }, [template, templateSrc]);
 
+    // Función para definir la altura (bottom) independiente de los textos según la plantilla grupal
+    const getGroupTextStyle = () => {
+        switch (template) {
+            case 'horizontal':
+                return 'bottom-[25%];'; // Ajuste específico para horizontal
+            case 'vertical':
+                return 'bottom-[25%];'; // Ajuste específico para vertical
+            case 'cuadrada':
+            default:
+                return 'bottom-[25%];'; // Ajuste específico para cuadrada
+        }
+    };
+
     return (
         <div className="flex flex-col items-center justify-center bg-zinc-900 p-4 rounded-xl border border-amber-500/30 shadow-xl w-full">
             <span className="text-xs text-amber-200/70 mb-2">Vista previa (Formato Historia de Instagram)</span>
@@ -56,9 +69,12 @@ export function CanvasPreview({ image, template, text, motivationalText, preview
                     className="absolute inset-0 w-full h-full object-fill pointer-events-none z-10"
                 />
 
-                {/* Textos para Fotos Grupales (Motivacional + Leyenda Fija) */}
+                {/* Textos para Fotos Grupales con altura independiente por template */}
                 {template !== 'cartel' && (
-                    <div className="absolute inset-x-0 bottom-[26%] px-6 z-20 text-center flex flex-col items-center space-y-1">
+                    <div 
+                        className="absolute inset-x-0 px-6 z-20 text-center flex flex-col items-center space-y-1"
+                        style={{ bottom: template === 'horizontal' ? '35%' : template === 'vertical' ? '25%' : '22%' }}
+                    >
                         <p className="text-white font-semibold text-sm md:text-base drop-shadow-md leading-snug">
                             {motivationalText}
                         </p>
@@ -70,7 +86,7 @@ export function CanvasPreview({ image, template, text, motivationalText, preview
 
                 {/* Texto para Carteles de Aviso */}
                 {template === 'cartel' && (
-                    <div className="absolute inset-x-0 top-[42%] px-8 z-20 text-center">
+                    <div className="absolute inset-x-0 top-[45%] px-8 z-20 text-center">
                         <p className="text-amber-100 font-bold text-base md:text-lg drop-shadow-md whitespace-pre-line leading-relaxed">
                             {text || 'Escribe el texto del aviso...'}
                         </p>
