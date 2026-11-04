@@ -8,7 +8,7 @@ const TEMPLATES = {
     cartel: '/templates/cartel.png',
 };
 
-export function CanvasPreview({ image, template, text, previewRef }) {
+export function CanvasPreview({ image, template, text, motivationalText, previewRef }) {
     const [hole, setHole] = useState(null);
     const templateSrc = TEMPLATES[template] || TEMPLATES.cartel;
 
@@ -20,17 +20,17 @@ export function CanvasPreview({ image, template, text, previewRef }) {
     }, [template, templateSrc]);
 
     return (
-        <div className="flex flex-col items-center justify-center bg-black-900 p-4 rounded-xl border border-amber-800 shadow-xl w-full">
-            <span className="text-xs text-slate-400 mb-2">Vista previa (Formato Historia de Instagram)</span>
+        <div className="flex flex-col items-center justify-center bg-zinc-900 p-4 rounded-xl border border-amber-500/30 shadow-xl w-full">
+            <span className="text-xs text-amber-200/70 mb-2">Vista previa (Formato Historia de Instagram)</span>
 
             <div
                 ref={previewRef}
-                className="relative w-full max-w-sm aspect-[9/16] overflow-hidden bg-black-950 border border-amber-700 shadow-2xl"
+                className="relative w-full max-w-sm aspect-[9/16] overflow-hidden bg-black border border-amber-500/30 shadow-2xl"
             >
                 {/* Foto debajo del marco, ajustada al hueco detectado */}
                 {template !== 'cartel' && hole && (
                     <div
-                        className="absolute overflow-hidden z-0 bg-black-900"
+                        className="absolute overflow-hidden z-0 bg-black"
                         style={{
                             left: `${hole.left}%`,
                             top: `${hole.top}%`,
@@ -39,10 +39,10 @@ export function CanvasPreview({ image, template, text, previewRef }) {
                         }}
                     >
                         {image ? (
-                            <img src={image} alt="Base" className="w-full h-full object-cover object-center" />
+                            <img src={image} alt="Base" className="w-full h-full object-cover object-center scale-105" />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center">
-                                <span className="text-slate-500 text-xs text-center px-2">Sube tu foto aquí</span>
+                                <span className="text-amber-500/50 text-xs text-center px-2">Sube tu foto aquí</span>
                             </div>
                         )}
                     </div>
@@ -56,9 +56,22 @@ export function CanvasPreview({ image, template, text, previewRef }) {
                     className="absolute inset-0 w-full h-full object-fill pointer-events-none z-10"
                 />
 
+                {/* Textos para Fotos Grupales (Motivacional + Leyenda Fija) */}
+                {template !== 'cartel' && (
+                    <div className="absolute inset-x-0 bottom-[26%] px-6 z-20 text-center flex flex-col items-center space-y-1">
+                        <p className="text-white font-semibold text-sm md:text-base drop-shadow-md leading-snug">
+                            {motivationalText}
+                        </p>
+                        <p className="text-amber-400 font-bold text-base md:text-lg tracking-wider drop-shadow-md">
+                            JIU JITSU BRASILEÑO
+                        </p>
+                    </div>
+                )}
+
+                {/* Texto para Carteles de Aviso */}
                 {template === 'cartel' && (
-                    <div className="absolute inset-x-0 top-[45%] px-8 z-20 text-center">
-                        <p className="text-white font-bold text-base md:text-lg drop-shadow-md whitespace-pre-line leading-relaxed">
+                    <div className="absolute inset-x-0 top-[42%] px-8 z-20 text-center">
+                        <p className="text-amber-100 font-bold text-base md:text-lg drop-shadow-md whitespace-pre-line leading-relaxed">
                             {text || 'Escribe el texto del aviso...'}
                         </p>
                     </div>

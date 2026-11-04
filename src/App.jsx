@@ -3,15 +3,16 @@ import { ImageUploader } from './components/ImageUploader';
 import { TemplateSelector } from './components/TemplateSelector';
 import { TextEditor } from './components/TextEditor';
 import { CanvasPreview } from './components/CanvasPreview';
+import { PhraseController } from './components/PhraseController'; // Nuevo import
 import { toPng } from 'html-to-image';
 
 export default function App() {
   const [image, setImage] = useState(null);
   const [template, setTemplate] = useState('vertical');
   const [text, setText] = useState('');
+  const [motivationalText, setMotivationalText] = useState(''); // Nuevo estado para la frase
   const previewRef = useRef(null);
 
-  // Función que recibe la imagen y el template detectado automáticamente
   const handleImageUpload = (imageUrl, autoTemplate) => {
     setImage(imageUrl);
     if (autoTemplate) {
@@ -23,7 +24,7 @@ export default function App() {
     const node = previewRef.current;
     if (!node) return;
 
-    const pixelRatio = 1080 / node.offsetWidth; // salida exacta 1080×1920
+    const pixelRatio = 1080 / node.offsetWidth;
 
     toPng(node, { cacheBust: true, pixelRatio })
       .then((dataUrl) => {
@@ -37,7 +38,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-black text-amber-100 flex flex-col p-4 md:p-8">
-      {/* Cabecera con Logotipo y Estilo Dorado */}
       <header className="mb-6 text-center flex flex-col items-center justify-center">
         <img
           src="/logo.png"
@@ -49,7 +49,6 @@ export default function App() {
       </header>
 
       <main className="flex-1 max-w-6xl w-full mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-        {/* Panel de Controles con Estética Oscura y Dorada */}
         <div className="flex flex-col space-y-4">
           <div className="bg-zinc-900 p-4 rounded-xl border border-amber-500/30 shadow-xl">
             <ImageUploader onImageUpload={handleImageUpload} />
@@ -59,10 +58,13 @@ export default function App() {
             <TemplateSelector selectedTemplate={template} onSelectTemplate={setTemplate} />
           </div>
 
-          {template === 'cartel' && (
+          {/* Control condicional: TextEditor para avisos, PhraseController para fotos grupales */}
+          {template === 'cartel' ? (
             <div className="bg-zinc-900 p-4 rounded-xl border border-amber-500/30 shadow-xl">
               <TextEditor text={text} onTextChange={setText} />
             </div>
+          ) : (
+            <PhraseController onPhraseChange={setMotivationalText} />
           )}
 
           <button
@@ -73,11 +75,12 @@ export default function App() {
           </button>
         </div>
 
-        {/* Panel de Previsualización */}
+        {/* Pasamos el texto motivacional al CanvasPreview */}
         <CanvasPreview
           image={image}
           template={template}
           text={text}
+          motivationalText={motivationalText} 
           previewRef={previewRef}
         />
       </main>
