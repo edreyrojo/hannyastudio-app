@@ -1,5 +1,11 @@
 @import "tailwindcss";
+@import "tailwindcss";
 
+.font-strong {
+  font-family: 'Anton', sans-serif;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
 /* Ajustes globales base para la aplicación móvil y de escritorio */
 body {
   margin: 0;
