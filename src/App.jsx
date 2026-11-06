@@ -4,7 +4,7 @@ import { TemplateSelector } from './components/TemplateSelector';
 import { TextEditor } from './components/TextEditor';
 import { CanvasPreview } from './components/CanvasPreview';
 import { PhraseController } from './components/PhraseController';
-import { toBlob } from 'html-to-image';
+import { toPng } from 'html-to-image';
 
 export default function App() {
   const [image, setImage] = useState(null);
@@ -27,29 +27,37 @@ export default function App() {
     const pixelRatio = 1080 / node.offsetWidth;
 
     try {
-      // Generamos la imagen en formato Blob de alta resolución
-      const blob = await toBlob(node, { cacheBust: true, pixelRatio });
-      if (!blob) return;
-
+      // Generamos la imagen con toPng para mayor compatibilidad móvil
+      const dataUrl = await toPng(node, { cacheBust: true, pixelRatio });
+      
+      // Convertimos el dataUrl en Blob para crear el archivo compartido
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
       const file = new File([blob], 'hannyastudio-imagen.png', { type: 'image/png' });
 
-      // Verificamos si el dispositivo móvil soporta compartir archivos nativamente
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: 'HANNYASTUDIO',
-          text: 'Imagen generada para el dojo',
-        });
-      } else {
-        // Fallback clásico para computadoras o navegadores de Escritorio
-        const link = document.createElement('a');
-        link.download = 'hannyastudio-imagen.png';
-        link.href = URL.createObjectURL(blob);
-        link.click();
-        URL.revokeObjectURL(link.href);
+      // Intentamos compartir nativamente en dispositivos móviles
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: 'HANNYASTUDIO',
+            text: 'Imagen generada para el dojo',
+          });
+          return;
+        } catch (shareErr) {
+          if (shareErr.name === 'AbortError') return; // Si el usuario cancela, no hacemos nada
+          console.log('Uso de alternativa por fallo en compartir nativo', shareErr);
+        }
       }
+
+      // Respaldo universal para escritorio o navegadores restringidos
+      const link = document.createElement('a');
+      link.download = 'hannyastudio-imagen.png';
+      link.href = dataUrl;
+      link.click();
     } catch (err) {
-      console.error('Error al generar o compartir la imagen', err);
+      console.error('Error al generar la imagen', err);
+      alert('No se pudo generar la imagen. Verifica los permisos o intenta nuevamente.');
     }
   };
 
