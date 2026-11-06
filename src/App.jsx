@@ -11,12 +11,16 @@ export default function App() {
   const [template, setTemplate] = useState('vertical');
   const [text, setText] = useState('');
   const [motivationalText, setMotivationalText] = useState('');
+  const [cropSettings, setCropSettings] = useState({ zoom: 1, offsetX: 0, offsetY: 0 });
   const previewRef = useRef(null);
 
-  const handleImageUpload = (imageUrl, autoTemplate) => {
+  const handleImageUpload = (imageUrl, autoTemplate, crop) => {
     setImage(imageUrl);
     if (autoTemplate) {
       setTemplate(autoTemplate);
+    }
+    if (crop) {
+      setCropSettings(crop);
     }
   };
 
@@ -27,15 +31,11 @@ export default function App() {
     const pixelRatio = 1080 / node.offsetWidth;
 
     try {
-      // Generamos la imagen con toPng para mayor compatibilidad móvil
       const dataUrl = await toPng(node, { cacheBust: true, pixelRatio });
-      
-      // Convertimos el dataUrl en Blob para crear el archivo compartido
       const res = await fetch(dataUrl);
       const blob = await res.blob();
       const file = new File([blob], 'hannyastudio-imagen.png', { type: 'image/png' });
 
-      // Intentamos compartir nativamente en dispositivos móviles
       if (navigator.share) {
         try {
           await navigator.share({
@@ -45,12 +45,11 @@ export default function App() {
           });
           return;
         } catch (shareErr) {
-          if (shareErr.name === 'AbortError') return; // Si el usuario cancela, no hacemos nada
+          if (shareErr.name === 'AbortError') return;
           console.log('Uso de alternativa por fallo en compartir nativo', shareErr);
         }
       }
 
-      // Respaldo universal para escritorio o navegadores restringidos
       const link = document.createElement('a');
       link.download = 'hannyastudio-imagen.png';
       link.href = dataUrl;
@@ -104,6 +103,7 @@ export default function App() {
           template={template}
           text={text}
           motivationalText={motivationalText} 
+          cropSettings={cropSettings}
           previewRef={previewRef}
         />
       </main>
