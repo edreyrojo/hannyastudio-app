@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { toBlob } from 'html-to-image';
+import { renderToBlob } from './utils/exportImage';
 import { ImageUploader } from './components/ImageUploader';
 import { FramingControls } from './components/FramingControls';
 import { TemplateSelector } from './components/TemplateSelector';
@@ -11,8 +11,6 @@ import { ResultModal } from './components/ResultModal';
 
 const DEFAULT_CROP = { zoom: 1, x: 0, y: 0 };
 
-// y: % desde abajo en fotos grupales, % desde arriba en el aviso
-// size: 10 = 1 % del ancho de la imagen
 const DEFAULT_LAYOUTS = {
   vertical: { y: 25, size: 38 },
   horizontal: { y: 35, size: 38 },
@@ -32,14 +30,14 @@ function Section({ step, title, children }) {
 }
 
 export default function App() {
-  const [image, setImage] = useState(null); // { url, width, height }
+  const [image, setImage] = useState(null);
   const [template, setTemplate] = useState('vertical');
   const [text, setText] = useState('');
   const [motivationalText, setMotivationalText] = useState('');
   const [crop, setCrop] = useState(DEFAULT_CROP);
   const [layouts, setLayouts] = useState(DEFAULT_LAYOUTS);
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState(null); // { file, url }
+  const [result, setResult] = useState(null);
   const previewRef = useRef(null);
 
   const isGroup = template !== 'cartel';
@@ -60,25 +58,16 @@ export default function App() {
     if (autoTemplate) setTemplate(autoTemplate);
   };
 
-  const renderImage = async () => {
-    const node = previewRef.current;
-    const options = { cacheBust: true, pixelRatio: 1080 / node.offsetWidth };
-    // Safari a veces sale en blanco en el primer render: el primero "calienta"
-    await toBlob(node, options);
-    return toBlob(node, options);
-  };
-
   const handleGenerate = async () => {
-    if (busy || !previewRef.current) return;
+    if (busy) return;
     setBusy(true);
     try {
-      const blob = await renderImage();
-      if (!blob) throw new Error('No se generó la imagen');
+      const blob = await renderToBlob({ template, image, crop, text, motivationalText, layout });
       const file = new File([blob], `hannyastudio-${Date.now()}.png`, { type: 'image/png' });
       setResult({ file, url: URL.createObjectURL(blob) });
     } catch (err) {
       console.error(err);
-      alert('No se pudo generar la imagen. Intenta de nuevo.');
+      alert(`No se pudo generar la imagen: ${err.message}`);
     } finally {
       setBusy(false);
     }
@@ -102,7 +91,6 @@ export default function App() {
       </header>
 
       <main className="flex-1 max-w-6xl w-full mx-auto grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 items-start">
-        {/* Vista previa: fija arriba en celular, a la derecha en PC */}
         <div className="order-first md:order-last sticky top-0 z-30 bg-black py-2 md:top-4 md:bg-transparent md:py-0">
           <CanvasPreview
             image={image}
@@ -128,7 +116,6 @@ export default function App() {
             </Section>
           )}
 
-          {/* El banco de frases siempre montado para no reiniciar el "sin repetir" */}
           <div className={isGroup ? '' : 'hidden'}>
             <Section step={steps.content} title="Frase motivadora">
               <PhraseController onPhraseChange={setMotivationalText} />

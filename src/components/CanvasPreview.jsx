@@ -3,7 +3,7 @@ import { findHole } from '../utils/findHole';
 
 export const MAX_ZOOM = 4;
 
-const TEMPLATES = {
+export const TEMPLATES = {
     cuadrada: '/templates/cuadrada.png',
     horizontal: '/templates/horizontal.png',
     vertical: '/templates/vertical.png',
@@ -14,7 +14,7 @@ const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 
 // Tamaño y posición de la foto dentro del hueco (siempre cubre todo el hueco).
 // x e y son desplazamientos como fracción del ancho/alto del hueco.
-function fitImage(box, hole, image, crop) {
+export function fitImage(box, hole, image, crop) {
     const hw = (box.w * hole.width) / 100;
     const hh = (box.h * hole.height) / 100;
     const base = Math.max(hw / image.width, hh / image.height);
@@ -138,6 +138,7 @@ export function CanvasPreview({
                             {fit ? (
                                 <img
                                     src={image.url}
+                                    crossOrigin="anonymous"
                                     alt="Foto"
                                     draggable={false}
                                     style={{
@@ -162,6 +163,7 @@ export function CanvasPreview({
                     <img
                         key={template}
                         src={templateSrc}
+                        crossOrigin="anonymous"
                         alt="Frame de Academia"
                         className="absolute inset-0 w-full h-full object-fill pointer-events-none z-10"
                     />
