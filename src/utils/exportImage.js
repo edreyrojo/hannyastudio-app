@@ -3,7 +3,7 @@ import { findHole } from './findHole';
 
 const W = 1080;
 const H = 1920;
-const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const FONT = '"Anton", sans-serif';
 
 async function loadImage(src) {
     const img = new Image();
