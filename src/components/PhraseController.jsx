@@ -1,3 +1,39 @@
+import { useState, useEffect } from 'react';
+import { MOTIVATIONAL_PHRASES } from '../utils/phrases';
+
+export function PhraseController({ onPhraseChange }) {
+    const [availablePhrases, setAvailablePhrases] = useState([]);
+    const [exhausted, setExhausted] = useState(false);
+
+    useEffect(() => {
+        // Inicializamos barajando las frases de forma aleatoria
+        const shuffled = [...MOTIVATIONAL_PHRASES].sort(() => Math.random() - 0.5);
+        setAvailablePhrases(shuffled);
+        if (shuffled.length > 0) {
+            onPhraseChange(shuffled[0]);
+        }
+    }, []);
+
+    const handleNextPhrase = () => {
+        if (availablePhrases.length > 1) {
+            // Tomamos la siguiente, la removemos permanentemente de las disponibles
+            const remaining = availablePhrases.slice(1);
+            setAvailablePhrases(remaining);
+            onPhraseChange(remaining[0]);
+        } else {
+            setAvailablePhrases([]);
+            setExhausted(true);
+            onPhraseChange("¡Banco de frases agotado! Recargue el archivo phrases.js, jefe.");
+        }
+    };
+
+    const handleResetBank = () => {
+        const shuffled = [...MOTIVATIONAL_PHRASES].sort(() => Math.random() - 0.5);
+        setAvailablePhrases(shuffled);
+        setExhausted(false);
+        onPhraseChange(shuffled[0]);
+    };
+
     return (
         <div>
             <div className="flex justify-end mb-2">
@@ -35,3 +71,4 @@
             )}
         </div>
     );
+}
