@@ -173,10 +173,10 @@ export function CanvasPreview({
                             className="absolute inset-x-0 px-[6%] z-20 text-center flex flex-col items-center pointer-events-none"
                             style={{ bottom: `${layout.y}%`, gap: fontPx * 0.3 }}
                         >
-                            <p className="text-white font-semibold drop-shadow-md leading-snug" style={{ fontSize: fontPx }}>
+                            <p className="text-white font-semibold font-strong drop-shadow-md leading-snug" style={{ fontSize: fontPx }}>
                                 {motivationalText}
                             </p>
-                            <p className="text-amber-400 font-bold tracking-wider drop-shadow-md" style={{ fontSize: fontPx * 1.15 }}>
+                            <p className="text-amber-400 font-bold font-strong tracking-wider drop-shadow-md" style={{ fontSize: fontPx * 1.15 }}>
                                 JIU JITSU BRASILEÑO
                             </p>
                         </div>
@@ -188,7 +188,7 @@ export function CanvasPreview({
                             style={{ top: `${layout.y}%` }}
                         >
                             <p
-                                className="text-amber-100 font-bold drop-shadow-md whitespace-pre-line leading-relaxed"
+                                className="text-amber-100 font-bold font-strong drop-shadow-md whitespace-pre-line leading-relaxed"
                                 style={{ fontSize: fontPx }}
                             >
                                 {text || 'Escribe el texto del aviso...'}
