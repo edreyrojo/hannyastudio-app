@@ -38,6 +38,7 @@ export default function App() {
   const [layouts, setLayouts] = useState(DEFAULT_LAYOUTS);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
+  const [notice, setNotice] = useState('');
   const previewRef = useRef(null);
 
   const isGroup = template !== 'cartel';
@@ -45,6 +46,18 @@ export default function App() {
   const steps = isGroup
     ? { photo: 2, content: 3, adjust: 4, exp: 5 }
     : { content: 2, adjust: 3, exp: 4 };
+
+  const missingPhoto = isGroup && !image;
+  const missingPhrase = isGroup && !motivationalText.trim();
+  const missingText = !isGroup && !text.trim();
+  const canGenerate = !busy && !missingPhoto && !missingPhrase && !missingText;
+  const blockReason = missingPhoto
+    ? 'Falta la foto para el formato grupal.'
+    : missingPhrase
+      ? 'Falta la frase motivadora.'
+      : missingText
+        ? 'Falta el texto del aviso.'
+        : '';
 
   const updateLayout = (patch) =>
     setLayouts((prev) => ({ ...prev, [template]: { ...prev[template], ...patch } }));
@@ -55,19 +68,21 @@ export default function App() {
     if (image?.url) URL.revokeObjectURL(image.url);
     setImage(imageData);
     setCrop(DEFAULT_CROP);
+    setNotice('');
     if (autoTemplate) setTemplate(autoTemplate);
   };
 
   const handleGenerate = async () => {
-    if (busy) return;
+    if (!canGenerate) return;
     setBusy(true);
+    setNotice('');
     try {
       const blob = await renderToBlob({ template, image, crop, text, motivationalText, layout });
       const file = new File([blob], `hannyastudio-${Date.now()}.png`, { type: 'image/png' });
       setResult({ file, url: URL.createObjectURL(blob) });
     } catch (err) {
       console.error(err);
-      alert(`No se pudo generar la imagen: ${err.message}`);
+      setNotice(err?.message || 'No se pudo generar la imagen.');
     } finally {
       setBusy(false);
     }
@@ -111,7 +126,7 @@ export default function App() {
 
           {isGroup && (
             <Section step={steps.photo} title="Foto">
-              <ImageUploader hasImage={!!image} onImageUpload={handleImageUpload} />
+              <ImageUploader hasImage={!!image} onImageUpload={handleImageUpload} onError={setNotice} />
               {image && <FramingControls crop={crop} onChange={setCrop} onReset={() => setCrop(DEFAULT_CROP)} />}
             </Section>
           )}
@@ -140,12 +155,22 @@ export default function App() {
           <Section step={steps.exp} title="Exportar">
             <button
               onClick={handleGenerate}
-              disabled={busy}
-              className="w-full py-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-black font-bold rounded-xl shadow-lg transition-all cursor-pointer tracking-wide"
+              disabled={!canGenerate}
+              className="w-full py-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 disabled:cursor-not-allowed text-black font-bold rounded-xl shadow-lg transition-all cursor-pointer tracking-wide"
             >
               {busy ? 'Generando...' : 'Generar imagen'}
             </button>
-            <p className="text-[11px] text-amber-200/60 text-center mt-2">Salida en 1080 x 1920 px</p>
+            {!busy &&
+              (canGenerate ? (
+                <p className="text-[11px] text-amber-200/60 text-center mt-2">Salida en 1080 x 1920 px</p>
+              ) : (
+                <p className="text-[11px] text-amber-300/80 text-center mt-2">{blockReason}</p>
+              ))}
+            {notice && (
+              <p className="text-[11px] text-red-400 text-center mt-2" role="alert">
+                {notice}
+              </p>
+            )}
           </Section>
         </div>
       </main>

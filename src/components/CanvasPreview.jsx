@@ -1,49 +1,40 @@
-import { useEffect, useRef, useState } from 'react';
-import { findHole } from '../utils/findHole';
-
-export const MAX_ZOOM = 4;
-
-export const TEMPLATES = {
-    cuadrada: '/templates/cuadrada.png',
-    horizontal: '/templates/horizontal.png',
-    vertical: '/templates/vertical.png',
-    cartel: '/templates/cartel.png',
-};
-
-const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
-
-// Tamaño y posición de la foto dentro del hueco (siempre cubre todo el hueco).
-// x e y son desplazamientos como fracción del ancho/alto del hueco.
-export function fitImage(box, hole, image, crop) {
-    const hw = (box.w * hole.width) / 100;
-    const hh = (box.h * hole.height) / 100;
-    const base = Math.max(hw / image.width, hh / image.height);
-    const zoom = clamp(crop.zoom, 1, MAX_ZOOM);
-    const w = image.width * base * zoom;
-    const h = image.height * base * zoom;
-    const maxX = Math.max(0, w - hw) / 2 / hw;
-    const maxY = Math.max(0, h - hh) / 2 / hh;
-    return { hw, hh, w, h, zoom, x: clamp(crop.x, -maxX, maxX), y: clamp(crop.y, -maxY, maxY) };
-}
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { fitImage } from '../utils/fitImage';
+import { TEMPLATES, W } from '../utils/templates';
+import { TEXT, blockStyle, computeTextLayout, fontString } from '../utils/textLayout';
 
 export function CanvasPreview({
     image, template, text, motivationalText, layout, crop, onCropChange, previewRef,
 }) {
-    const [hole, setHole] = useState(null);
     const [box, setBox] = useState({ w: 0, h: 0 });
+    const [fontsReady, setFontsReady] = useState(false);
     const pointers = useRef(new Map());
     const gesture = useRef(null);
     const latest = useRef({});
 
-    const templateSrc = TEMPLATES[template] || TEMPLATES.cartel;
+    const tpl = TEMPLATES[template] || TEMPLATES.cartel;
     const isGroup = template !== 'cartel';
+    const hole = isGroup ? tpl.hole : null;
 
+    // El texto se mide con la fuente real; medir antes de que cargue da saltos
+    // de línea distintos a los del archivo exportado.
     useEffect(() => {
-        if (!isGroup) { setHole(null); return; }
         let cancelled = false;
-        findHole(templateSrc).then((h) => { if (!cancelled) setHole(h); });
-        return () => { cancelled = true; };
-    }, [isGroup, templateSrc]);
+        const ready = document.fonts
+            ? document.fonts
+                .load(fontString(64))
+                .catch(() => {})
+                .then(() => document.fonts.ready)
+            : Promise.resolve();
+
+        ready.then(() => {
+            if (!cancelled) setFontsReady(true);
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     // Tamaño real de la vista previa (para escalar texto y calcular el encuadre)
     useEffect(() => {
@@ -56,15 +47,35 @@ export function CanvasPreview({
         return () => ro.disconnect();
     }, [previewRef]);
 
+    const scale = box.w > 0 ? box.w / W : 0;
     const ready = Boolean(isGroup && image && hole && box.w > 0);
     const fit = ready ? fitImage(box, hole, image, crop) : null;
-    latest.current = { ready, box, hole, image, crop, onCropChange };
+
+    const plan = useMemo(() => {
+        if (box.w <= 0 || !fontsReady) return null;
+        return computeTextLayout({
+            template,
+            text,
+            phrase: motivationalText,
+            layout,
+            hole,
+        });
+    }, [box.w, fontsReady, template, text, motivationalText, layout, hole]);
+
+    // El manejador de gestos necesita siempre el último estado sin provocar renders.
+    useEffect(() => {
+        latest.current = { ready, box, hole, image, crop, onCropChange };
+    });
 
     // ---- Gestos: un dedo mueve, dos dedos hacen zoom ----
     const startGesture = () => {
-        const { box, hole, image, crop } = latest.current;
-        const start = fitImage(box, hole, image, crop);
+        const current = latest.current;
+        if (!current.ready) return;
+
+        const start = fitImage(current.box, current.hole, current.image, current.crop);
         const [a, b] = [...pointers.current.values()];
+        if (!a) return;
+
         gesture.current = {
             crop: { zoom: start.zoom, x: start.x, y: start.y },
             dist: b ? Math.hypot(a.x - b.x, a.y - b.y) : 0,
@@ -95,6 +106,8 @@ export function CanvasPreview({
         }
 
         const { hw, hh } = fitImage(box, hole, image, { zoom, x: 0, y: 0 });
+        if (!hw || !hh) return;
+
         const next = fitImage(box, hole, image, {
             zoom,
             x: g.crop.x + (mid.x - g.mid.x) / hw,
@@ -105,12 +118,9 @@ export function CanvasPreview({
 
     const handlePointerEnd = (e) => {
         pointers.current.delete(e.pointerId);
-        if (pointers.current.size > 0 && latest.current.ready) startGesture();
+        if (pointers.current.size > 0) startGesture();
         else gesture.current = null;
     };
-
-    // Tamaño de letra relativo al ancho de la imagen
-    const fontPx = (box.w * layout.size) / 1000;
 
     return (
         <div className="flex flex-col items-center w-full">
@@ -162,37 +172,31 @@ export function CanvasPreview({
 
                     <img
                         key={template}
-                        src={templateSrc}
+                        src={tpl.src}
                         crossOrigin="anonymous"
                         alt="Frame de Academia"
                         className="absolute inset-0 w-full h-full object-fill pointer-events-none z-10"
                     />
 
-                    {isGroup && (
-                        <div
-                            className="absolute inset-x-0 px-[6%] z-20 text-center flex flex-col items-center pointer-events-none"
-                            style={{ bottom: `${layout.y}%`, gap: fontPx * 0.3 }}
-                        >
-                            <p className="text-white font-semibold font-strong drop-shadow-md leading-snug" style={{ fontSize: fontPx }}>
-                                {motivationalText}
-                            </p>
-                            <p className="text-amber-400 font-bold font-strong tracking-wider drop-shadow-md" style={{ fontSize: fontPx * 1.15 }}>
-                                JIU JITSU BRASILEÑO
-                            </p>
-                        </div>
-                    )}
-
-                    {!isGroup && (
-                        <div
-                            className="absolute inset-x-0 px-[8%] z-20 text-center pointer-events-none"
-                            style={{ top: `${layout.y}%` }}
-                        >
-                            <p
-                                className="text-amber-100 font-bold font-strong drop-shadow-md whitespace-pre-line leading-relaxed"
-                                style={{ fontSize: fontPx }}
-                            >
-                                {text || 'Escribe el texto del aviso...'}
-                            </p>
+                    {plan && (
+                        <div className="absolute inset-0 z-20 pointer-events-none">
+                            {plan.accent && (
+                                <p style={blockStyle(plan.accent, scale)}>{plan.accent.lines.join('\n')}</p>
+                            )}
+                            {plan.phrase.lines.length > 0 ? (
+                                <p style={blockStyle(plan.phrase, scale)}>{plan.phrase.lines.join('\n')}</p>
+                            ) : (
+                                !isGroup && (
+                                    <p
+                                        style={{
+                                            ...blockStyle(plan.phrase, scale),
+                                            color: 'rgba(254, 243, 199, 0.35)',
+                                        }}
+                                    >
+                                        ESCRIBE EL TEXTO DEL AVISO
+                                    </p>
+                                )
+                            )}
                         </div>
                     )}
                 </div>
@@ -201,6 +205,12 @@ export function CanvasPreview({
             {ready && (
                 <p className="mt-1 text-[11px] text-amber-200/60 text-center">
                     Arrastra para mover la foto, pellizca para acercar
+                </p>
+            )}
+
+            {ready && plan?.overlap > TEXT.overlapWarning && (
+                <p className="mt-1 text-[11px] text-amber-300/80 text-center">
+                    El texto tapa buena parte de la foto. Baja la altura o reduce la letra.
                 </p>
             )}
         </div>

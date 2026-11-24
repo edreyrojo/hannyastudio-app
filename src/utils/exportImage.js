@@ -1,9 +1,6 @@
-import { TEMPLATES, fitImage } from '../components/CanvasPreview';
-import { findHole } from './findHole';
-
-const W = 1080;
-const H = 1920;
-const FONT = '"Anton", sans-serif';
+import { fitImage } from './fitImage';
+import { getTemplate, H, W } from './templates';
+import { TEXT, computeTextLayout, fontString } from './textLayout';
 
 async function loadImage(src) {
     const img = new Image();
@@ -12,28 +9,83 @@ async function loadImage(src) {
     return img;
 }
 
-function wrapLines(ctx, text, maxWidth) {
-    if (!text) return [];
-    const lines = [];
-    for (const paragraph of text.split('\n')) {
-        let line = '';
-        for (const word of paragraph.split(' ')) {
-            const test = line ? `${line} ${word}` : word;
-            if (line && ctx.measureText(test).width > maxWidth) {
-                lines.push(line);
-                line = word;
-            } else {
-                line = test;
-            }
-        }
-        lines.push(line);
+// Sin esto, el primer export puede salir con la fuente de respaldo.
+async function ensureFonts() {
+    if (!document.fonts) return;
+    try {
+        await Promise.all([
+            document.fonts.load(fontString(64)),
+            document.fonts.load(fontString(24)),
+        ]);
+        await document.fonts.ready;
+    } catch {
+        // Si la fuente no está disponible, se exporta con la de respaldo.
     }
-    return lines;
+}
+
+// Dibuja una línea con el mismo espaciado entre letras que la vista previa.
+function drawTrackedLine(ctx, text, centerX, y, trackingPx) {
+    if (!trackingPx) {
+        ctx.fillText(text, centerX, y);
+        return;
+    }
+
+    if ('letterSpacing' in ctx) {
+        ctx.letterSpacing = `${trackingPx}px`;
+        ctx.fillText(text, centerX, y);
+        ctx.letterSpacing = '0px';
+        return;
+    }
+
+    // Safari viejo: se dibuja letra por letra para no perder el espaciado.
+    ctx.textAlign = 'left';
+    const chars = [...text];
+    let width = 0;
+    for (const char of chars) width += ctx.measureText(char).width + trackingPx;
+
+    let x = centerX - width / 2;
+    for (const char of chars) {
+        ctx.fillText(char, x, y);
+        x += ctx.measureText(char).width + trackingPx;
+    }
+    ctx.textAlign = 'center';
+}
+
+// Coloca cada línea igual que un bloque CSS: el interlineado se reparte
+// arriba y abajo del texto, así que la previa y el PNG coinciden.
+function drawBlock(ctx, block) {
+    if (!block || !block.lines.length) return;
+
+    const { fontPx, lineH, trackingPx } = block;
+    ctx.font = fontString(fontPx);
+    ctx.fillStyle = block.color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.shadowColor = TEXT.shadow.color;
+    ctx.shadowBlur = fontPx * TEXT.shadow.blur;
+    ctx.shadowOffsetY = fontPx * TEXT.shadow.offsetY;
+
+    const metrics = ctx.measureText('Hg');
+    const ascent = metrics.fontBoundingBoxAscent || fontPx * 0.8;
+    const descent = metrics.fontBoundingBoxDescent || fontPx * 0.2;
+    const halfLeading = (lineH - (ascent + descent)) / 2;
+
+    block.lines.forEach((line, index) => {
+        if (!line) return;
+        const baseline = block.top + index * lineH + halfLeading + ascent;
+        drawTrackedLine(ctx, line, W / 2, baseline, trackingPx);
+    });
+
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
 }
 
 export async function renderToBlob({ template, image, crop, text, motivationalText, layout }) {
+    await ensureFonts();
+
     const isGroup = template !== 'cartel';
-    const templateSrc = TEMPLATES[template] || TEMPLATES.cartel;
+    const tpl = getTemplate(template);
 
     const canvas = document.createElement('canvas');
     canvas.width = W;
@@ -42,77 +94,46 @@ export async function renderToBlob({ template, image, crop, text, motivationalTe
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, W, H);
 
-    const frame = await loadImage(templateSrc);
+    const frame = await loadImage(tpl.src);
 
     // 1. Foto dentro del hueco, con el mismo encuadre de la vista previa
     if (isGroup && image) {
-        const hole = await findHole(templateSrc);
-        if (hole) {
-            const photo = await loadImage(image.url);
-            const hx = (hole.left / 100) * W;
-            const hy = (hole.top / 100) * H;
-            const hw = (hole.width / 100) * W;
-            const hh = (hole.height / 100) * H;
-            const fit = fitImage({ w: W, h: H }, hole, image, crop);
+        if (!tpl.hole) throw new Error('Esta plantilla no tiene zona para la foto.');
 
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(hx, hy, hw, hh);
-            ctx.clip();
-            ctx.drawImage(
-                photo,
-                hx + hw / 2 + fit.x * hw - fit.w / 2,
-                hy + hh / 2 + fit.y * hh - fit.h / 2,
-                fit.w,
-                fit.h
-            );
-            ctx.restore();
-        }
+        const photo = await loadImage(image.url);
+        const hx = (tpl.hole.left / 100) * W;
+        const hy = (tpl.hole.top / 100) * H;
+        const hw = (tpl.hole.width / 100) * W;
+        const hh = (tpl.hole.height / 100) * H;
+        const fit = fitImage({ w: W, h: H }, tpl.hole, image, crop);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(hx, hy, hw, hh);
+        ctx.clip();
+        ctx.drawImage(
+            photo,
+            hx + hw / 2 + fit.x * hw - fit.w / 2,
+            hy + hh / 2 + fit.y * hh - fit.h / 2,
+            fit.w,
+            fit.h
+        );
+        ctx.restore();
     }
 
     // 2. Marco encima
     ctx.drawImage(frame, 0, 0, W, H);
 
     // 3. Texto
-    const fontPx = (W * layout.size) / 1000;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(0,0,0,0.55)';
-    ctx.shadowBlur = fontPx * 0.15;
-    ctx.shadowOffsetY = fontPx * 0.1;
-
-    if (isGroup) {
-        const subPx = fontPx * 1.15;
-        const subH = subPx * 1.5;
-        const gap = fontPx * 0.3;
-        let y = H * (1 - layout.y / 100); // borde inferior del bloque
-
-        ctx.font = `700 ${subPx}px ${FONT}`;
-        ctx.fillStyle = '#fbbf24';
-        if ('letterSpacing' in ctx) ctx.letterSpacing = `${subPx * 0.05}px`;
-        ctx.fillText('JIU JITSU BRASILEÑO', W / 2, y - subH / 2);
-        if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
-        y -= subH + gap;
-
-        ctx.font = `600 ${fontPx}px ${FONT}`;
-        ctx.fillStyle = '#ffffff';
-        const lineH = fontPx * 1.375;
-        const lines = wrapLines(ctx, motivationalText, W * 0.88);
-        for (let i = lines.length - 1; i >= 0; i--) {
-            ctx.fillText(lines[i], W / 2, y - lineH / 2);
-            y -= lineH;
-        }
-    } else {
-        ctx.font = `700 ${fontPx}px ${FONT}`;
-        ctx.fillStyle = '#fef3c7';
-        const lineH = fontPx * 1.625;
-        const lines = wrapLines(ctx, text, W * 0.84);
-        let y = (H * layout.y) / 100; // borde superior del bloque
-        for (const line of lines) {
-            ctx.fillText(line, W / 2, y + lineH / 2);
-            y += lineH;
-        }
-    }
+    const plan = computeTextLayout({
+        template,
+        text,
+        phrase: motivationalText,
+        layout,
+        hole: tpl.hole,
+    });
+    drawBlock(ctx, plan.phrase);
+    drawBlock(ctx, plan.accent);
 
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
     if (!blob) throw new Error('El navegador no pudo crear la imagen');

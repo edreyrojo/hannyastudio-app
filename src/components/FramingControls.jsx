@@ -1,4 +1,4 @@
-import { MAX_ZOOM } from './CanvasPreview';
+import { MAX_ZOOM } from '../utils/templates';
 
 const stepBtn =
     'w-10 h-10 shrink-0 rounded-lg bg-zinc-800 border border-amber-500/40 text-amber-400 text-lg font-bold cursor-pointer active:bg-zinc-700';

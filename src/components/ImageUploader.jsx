@@ -25,7 +25,7 @@ async function prepareImage(file) {
     }
 }
 
-export function ImageUploader({ hasImage, onImageUpload }) {
+export function ImageUploader({ hasImage, onImageUpload, onError }) {
     const fileRef = useRef(null);
     const cameraRef = useRef(null);
 
@@ -42,7 +42,7 @@ export function ImageUploader({ hasImage, onImageUpload }) {
             onImageUpload(data, detected);
         } catch (err) {
             console.error(err);
-            alert('No se pudo cargar la foto. Prueba con otra.');
+            onError?.('No se pudo cargar la foto. Prueba con otra.');
         }
     };
 
