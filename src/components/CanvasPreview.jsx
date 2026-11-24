@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { fitImage } from '../utils/fitImage';
 import { TEMPLATES, W } from '../utils/templates';
-import { TEXT, blockStyle, computeTextLayout, fontString } from '../utils/textLayout';
+import { TEXT, blockStyle, computeTextLayout, fontString, FONT_SAMPLE } from '../utils/textLayout';
 
 export function CanvasPreview({
     image, template, text, motivationalText, layout, crop, accent, onCropChange, previewRef,
@@ -22,7 +22,7 @@ export function CanvasPreview({
         let cancelled = false;
         const ready = document.fonts
             ? document.fonts
-                .load(fontString(64))
+                .load(fontString(64), FONT_SAMPLE)
                 .catch(() => {})
                 .then(() => document.fonts.ready)
             : Promise.resolve();
@@ -149,7 +149,6 @@ export function CanvasPreview({
                             {fit ? (
                                 <img
                                     src={image.url}
-                                    crossOrigin="anonymous"
                                     alt="Foto"
                                     draggable={false}
                                     style={{
@@ -173,8 +172,7 @@ export function CanvasPreview({
 
                     <img
                         key={template}
-                        src={tpl.src}
-                        crossOrigin="anonymous"
+                        src={tpl.preview}
                         alt="Frame de Academia"
                         className="absolute inset-0 w-full h-full object-fill pointer-events-none z-10"
                     />

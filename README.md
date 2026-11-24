@@ -15,11 +15,30 @@ Salida: PNG de 1080 x 1920 px.
 
 ```bash
 npm install
-npm run dev      # desarrollo en http://localhost:5173
-npm run build    # compila a dist/
-npm run preview  # sirve la versión compilada
-npm run lint     # oxlint
+npm run dev        # desarrollo en http://localhost:5173
+npm run build      # compila a dist/ y genera el service worker
+npm run preview    # sirve la versión compilada
+npm run lint       # oxlint
+npm run templates  # convierte templates-source/*.png a WebP y calcula huecos
+npm run icons      # regenera los iconos de la app desde brand/logo.png
 ```
+
+## App instalada y uso sin conexión
+
+La app es una PWA. En iPhone se instala desde Safari con Compartir → "Agregar a
+inicio", y abre en pantalla completa sin barra del navegador.
+
+La primera vez que se abre con internet, el service worker guarda en el teléfono
+el código, las plantillas, la fuente y los iconos (menos de 1 MB). A partir de
+ahí abre y genera imágenes sin conexión, incluidas las fotos que ya están en la
+biblioteca. La cámara y la galería del teléfono también funcionan sin red.
+
+Cuando se publica una versión nueva, la app muestra un aviso de "Hay una versión
+nueva" con un botón para actualizar. En iOS, si el aviso no aparece, basta con
+cerrar y volver a abrir la app.
+
+La fuente Anton está alojada en el proyecto (`src/assets/fonts/`), así que no
+depende de Google Fonts ni para la vista previa ni para la exportación.
 
 ## Qué guarda la app
 
@@ -109,69 +128,54 @@ miniatura. Desde ahí se puede compartir, descargar o borrar. Se conservan las
 
 ## Agregar una plantilla nueva
 
-1. Copia el PNG a `public/templates/`. Debe medir 1080 x 1920.
-2. Calcula el hueco. Abre la app en el navegador, entra a la consola y pega esto
-   cambiando el nombre del archivo:
+Las plantillas se preparan con un script, no a mano.
 
-```js
-(async () => {
-  const src = '/templates/mi-plantilla.png';
-  const img = new Image();
-  img.src = src;
-  await img.decode();
-  const { naturalWidth: w, naturalHeight: h } = img;
-  const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
-  const ctx = c.getContext('2d', { willReadFrequently: true });
-  ctx.drawImage(img, 0, 0);
-  const { data } = ctx.getImageData(0, 0, w, h);
+1. Copia el PNG a 	emplates-source/. Debe medir 1080 x 1920 y la zona de la
+   foto debe ser transparente.
+2. Ejecuta:
 
-  let minX = w, minY = h, maxX = -1, maxY = -1;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      if (data[(y * w + x) * 4 + 3] < 20) {
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
-      }
-    }
-  }
-  if (maxX < 0) return console.log('Sin hueco: es una plantilla de aviso.');
+`ash
+npm run templates
+`
 
-  const round = (v) => Math.round(v * 1000) / 1000;
-  const left = Math.max(0, minX - 2);
-  const top = Math.max(0, minY - 2);
-  const right = Math.min(w, maxX + 3);
-  const bottom = Math.min(h, maxY + 3);
-  console.log(JSON.stringify({
-    left: round((left / w) * 100),
-    top: round((top / h) * 100),
-    width: round(((right - left) / w) * 100),
-    height: round(((bottom - top) / h) * 100),
-  }, null, 2));
-})();
-```
+3. El script escribe en public/templates/ la versión completa (.webp), la de
+   vista previa (-preview.webp) y te imprime la entrada lista para pegar en
+   src/utils/templates.js, con el hueco calculado.
 
-3. Agrega la entrada en `src/utils/templates.js` con ese hueco. Si la plantilla
-   no lleva foto, usa `hole: null`.
+`js
+  mi-plantilla: {
+    src: '/templates/mi-plantilla.webp',
+    preview: '/templates/mi-plantilla-preview.webp',
+    hole: { left: 2.5, top: 11.2, width: 94.4, height: 54.3 },
+  },
+`
 
-Nota: el script toma el rectángulo que encierra toda la zona transparente. Si el
-arte tiene más de una zona transparente separada, el resultado va a ser la caja
-que las contiene; en ese caso conviene revisar el PNG.
+Si la plantilla no lleva foto (como el aviso), el script devuelve hole: null.
 
-## Archivos de plantilla y caché
+Notas:
 
-Los archivos de `public/` no llevan hash en el nombre, así que si reemplazas un
-marco con el mismo nombre el navegador puede seguir mostrando el viejo. Usa
-nombres versionados (`vertical-v2.png`) y actualiza la entrada correspondiente.
+- El hueco es el rectángulo que encierra toda la zona transparente, con 2 px de
+  margen para que la foto cubra hasta el borde rasgado. Si el arte tiene más de
+  una zona transparente separada, el resultado será la caja que las contiene.
+- La versión de vista previa se genera a 540 px de ancho: es la que se usa en
+  pantalla. La completa solo se usa al exportar, así que el teléfono no carga
+  imágenes de 1080 px para mostrar una miniatura.
+- Los PNG de 	emplates-source/ no se publican ni se cachean; solo son la
+  fuente para regenerar.
 
+## Caché y actualizaciones
+
+El build genera hashes en los nombres de JS, CSS y fuente, y el service worker
+precarga todo con su propia revisión. Al reemplazar una plantilla y volver a
+compilar, la app descarga la nueva versión y muestra el aviso de actualizar; no
+hace falta cambiar nombres de archivo.
+
+Los PNG de 	emplates-source/ y rand/ no se sirven al navegador.
 ## Estructura
 
 ```
 src/
-  App.jsx                    estado general, borrador e historial
+  App.jsx                    estado general, borrador, historial y PWA
   components/
     CanvasPreview.jsx        vista previa con gestos de encuadre
     ImageUploader.jsx        galería y cámara
@@ -188,7 +192,7 @@ src/
   hooks/
     usePhraseBank.js         estado y persistencia del banco
   utils/
-    templates.js             tamaños, plantillas y huecos
+    templates.js             tamaños, plantillas, huecos y versiones de previa
     fitImage.js              encuadre de la foto dentro del hueco
     textLayout.js            motor de texto compartido (previa y export)
     exportImage.js           dibujo del PNG final
@@ -197,16 +201,29 @@ src/
     caption.js               pie de foto y copiado al portapapeles
     storage.js               localStorage, IndexedDB y descargas
     thumbnail.js             miniaturas del historial y la biblioteca
+  assets/fonts/              Anton (woff2) alojada en el proyecto
+scripts/
+  templates.mjs              PNG → WebP completa + previa y cálculo del hueco
+  icons.mjs                  iconos de la PWA y logo del encabezado
+templates-source/            PNG originales de las plantillas (no se publican)
+brand/                       logo original (no se publica)
+public/                      lo que sí se sirve: plantillas WebP, iconos, manifest
 ```
 
 ## Despliegue
 
-- Las rutas son absolutas (`/templates/...`, `/logo.png`, `start_url: "/"`), así
+- Las rutas son absolutas (`/templates/...`, `/icons/...`, `start_url: "/"`), así
   que el sitio debe publicarse en la raíz del dominio. Vercel o Cloudflare Pages
   funcionan directo; GitHub Pages en una subruta requiere ajustar `base`.
-- La cámara, el compartir y la instalación como app necesitan HTTPS.
-- Caché larga para `/assets/*` (llevan hash) y corta para `/templates/*` y
-  `/logo.png` (no lo llevan).
+- HTTPS es obligatorio: la cámara, el compartir, el portapapeles y el service
+  worker no funcionan sin él.
+- El build genera `sw.js`. No lo bloquees en el servidor y no le pongas caché
+  larga: debe poder actualizarse.
+- Caché larga para `/assets/*` (llevan hash). Para `/templates/*`, `/icons/*` y
+  `/manifest.json` no hace falta configurar nada: el service worker controla su
+  propia revisión.
+- Después de desplegar una versión nueva, ábrela una vez con internet para que el
+  aviso de actualización aparezca en los teléfonos.
 
 ## Pendientes
 

@@ -1,6 +1,6 @@
 import { fitImage } from './fitImage';
 import { getTemplate, H, W } from './templates';
-import { TEXT, computeTextLayout, fontString } from './textLayout';
+import { TEXT, computeTextLayout, fontString, FONT_SAMPLE } from './textLayout';
 
 async function loadImage(src) {
     const img = new Image();
@@ -14,8 +14,8 @@ async function ensureFonts() {
     if (!document.fonts) return;
     try {
         await Promise.all([
-            document.fonts.load(fontString(64)),
-            document.fonts.load(fontString(24)),
+            document.fonts.load(fontString(64), FONT_SAMPLE),
+            document.fonts.load(fontString(24), FONT_SAMPLE),
         ]);
         await document.fonts.ready;
     } catch {

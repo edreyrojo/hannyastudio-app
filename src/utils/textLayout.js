@@ -34,6 +34,10 @@ export function fontString(px) {
   return `${TEXT.weight} ${px}px ${TEXT.family}`;
 }
 
+// Muestra con los caracteres que usa la app, para que el navegador cargue el
+// subconjunto correcto de la fuente antes de medir o dibujar.
+export const FONT_SAMPLE = 'ÁÉÍÓÚÜÑáéíóúüñ¿¡';
+
 let measureCtx;
 function getMeasure() {
   if (!measureCtx) {

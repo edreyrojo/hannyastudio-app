@@ -122,6 +122,9 @@ export default function App() {
   const [batchBusy, setBatchBusy] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0 });
   const [batchItems, setBatchItems] = useState(null);
+  const [needRefresh, setNeedRefresh] = useState(false);
+  const [offlineReady, setOfflineReady] = useState(false);
+  const updateSWRef = useRef(null);
   const previewRef = useRef(null);
 
   const isGroup = template !== 'cartel';
@@ -201,6 +204,24 @@ export default function App() {
       .catch(() => {});
     listPhotos()
       .then(setPhotos)
+      .catch(() => {});
+  }, []);
+
+  // Service worker: avisa cuando hay versión nueva o cuando ya se puede usar
+  // sin conexión. Solo en producción; en desarrollo no existe el archivo.
+  useEffect(() => {
+    if (!import.meta.env.PROD) return;
+
+    import('virtual:pwa-register')
+      .then(({ registerSW }) => {
+        updateSWRef.current = registerSW({
+          onNeedRefresh: () => setNeedRefresh(true),
+          onOfflineReady: () => {
+            setOfflineReady(true);
+            setTimeout(() => setOfflineReady(false), 4000);
+          },
+        });
+      })
       .catch(() => {});
   }, []);
 
@@ -408,8 +429,10 @@ export default function App() {
     <div className="min-h-screen bg-black text-amber-100 flex flex-col p-4 md:p-8 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
       <header className="mb-3 md:mb-6 text-center flex flex-col items-center justify-center">
         <img
-          src="/logo.png"
+          src="/logo-256.webp"
           alt="Hannya Logo"
+          width="64"
+          height="64"
           className="w-12 h-12 md:w-16 md:h-16 object-contain mb-1 drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]"
         />
         <h1 className="text-2xl md:text-3xl font-bold tracking-wider text-amber-400">HANNYASTUDIO</h1>
@@ -586,6 +609,27 @@ export default function App() {
           onChange={setSettings}
           onClose={() => setShowSettings(false)}
         />
+      )}
+
+      {needRefresh && (
+        <div className="fixed bottom-0 inset-x-0 z-40 bg-zinc-900 border-t border-amber-500/40 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex items-center gap-3">
+          <p className="flex-1 text-[11px] text-amber-100">Hay una versión nueva de la app.</p>
+          <button
+            type="button"
+            onClick={() => updateSWRef.current?.(true)}
+            className="px-3 py-2 rounded-lg bg-amber-500 text-black text-[11px] font-bold cursor-pointer"
+          >
+            Actualizar
+          </button>
+        </div>
+      )}
+
+      {offlineReady && !needRefresh && (
+        <div className="fixed bottom-0 inset-x-0 z-40 bg-zinc-900 border-t border-amber-500/20 px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+          <p className="text-[11px] text-amber-200/80 text-center">
+            Lista para funcionar sin conexión.
+          </p>
+        </div>
       )}
     </div>
   );

@@ -9,7 +9,7 @@ Estado del repositorio: rama `main`, sin cambios pendientes, último commit `6ac
 - Etapa 1, confiabilidad: terminada. Texto unificado entre previa y exportación, fuente garantizada, huecos precalculados, validaciones, ajuste automático de texto y limpieza.
 - Etapa 2, memoria y contenido: terminada. Borrador persistente, banco de frases editable con temas y favoritos, historial con miniaturas, ajustes de la academia.
 - Etapa 3, velocidad de producción: terminada. Siguiente frase desde el resultado, lote de 3, 5 o 7 imágenes, biblioteca de fotos y pie de foto con hashtags.
-- Etapa 4, app instalada (PWA offline): pendiente.
+- Etapa 4, app instalada: terminada en el proyecto. PWA con service worker, fuente Anton alojada, iconos correctos y plantillas WebP con versión de previa. Falta desplegar con dominio propio y probar en iPhone.
 - Etapa 5, crecimiento: pendiente.
 
 ---

@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "templates": "node scripts/templates.mjs",
+    "icons": "node scripts/icons.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.4",
@@ -21,7 +23,9 @@
     "autoprefixer": "^10.6.2",
     "oxlint": "^1.89.0",
     "postcss": "^8.5.32",
+    "sharp": "^0.35.5",
     "tailwindcss": "^4.3.4",
-    "vite": "^8.3.5"
+    "vite": "^8.3.5",
+    "vite-plugin-pwa": "^2.0.0"
   }
 }
