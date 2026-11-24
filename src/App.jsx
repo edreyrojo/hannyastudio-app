@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { renderToBlob } from './utils/exportImage';
 import { ImageUploader } from './components/ImageUploader';
 import { FramingControls } from './components/FramingControls';
@@ -8,6 +8,19 @@ import { PhraseController } from './components/PhraseController';
 import { TextControls } from './components/TextControls';
 import { CanvasPreview } from './components/CanvasPreview';
 import { ResultModal } from './components/ResultModal';
+import { HistoryModal } from './components/HistoryModal';
+import { SettingsModal } from './components/SettingsModal';
+import { TEXT } from './utils/textLayout';
+import {
+  addHistory,
+  listHistory,
+  loadDraft,
+  loadJSON,
+  saveDraftMeta,
+  saveDraftPhoto,
+  saveJSON,
+} from './utils/storage';
+import { makeThumbnail } from './utils/thumbnail';
 
 const DEFAULT_CROP = { zoom: 1, x: 0, y: 0 };
 
@@ -17,6 +30,34 @@ const DEFAULT_LAYOUTS = {
   cuadrada: { y: 22, size: 38 },
   cartel: { y: 45, size: 44 },
 };
+
+const DEFAULT_SETTINGS = { accentText: TEXT.accentText, showAccent: true };
+
+function cleanSettings(raw) {
+  return {
+    accentText:
+      typeof raw?.accentText === 'string' ? raw.accentText : DEFAULT_SETTINGS.accentText,
+    showAccent: typeof raw?.showAccent === 'boolean' ? raw.showAccent : true,
+  };
+}
+
+function cleanLayouts(raw) {
+  const next = { ...DEFAULT_LAYOUTS };
+  if (!raw || typeof raw !== 'object') return next;
+
+  for (const key of Object.keys(DEFAULT_LAYOUTS)) {
+    const item = raw[key];
+    if (item && Number.isFinite(item.y) && Number.isFinite(item.size)) {
+      next[key] = { y: item.y, size: item.size };
+    }
+  }
+  return next;
+}
+
+function cleanCrop(raw) {
+  if (!raw || !Number.isFinite(raw.zoom)) return DEFAULT_CROP;
+  return { zoom: raw.zoom, x: Number(raw.x) || 0, y: Number(raw.y) || 0 };
+}
 
 function Section({ step, title, children }) {
   return (
@@ -36,9 +77,14 @@ export default function App() {
   const [motivationalText, setMotivationalText] = useState('');
   const [crop, setCrop] = useState(DEFAULT_CROP);
   const [layouts, setLayouts] = useState(DEFAULT_LAYOUTS);
+  const [settings, setSettings] = useState(() => cleanSettings(loadJSON('settings.v1', null)));
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [notice, setNotice] = useState('');
+  const [hydrated, setHydrated] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [historyCount, setHistoryCount] = useState(0);
   const previewRef = useRef(null);
 
   const isGroup = template !== 'cartel';
@@ -46,6 +92,69 @@ export default function App() {
   const steps = isGroup
     ? { photo: 2, content: 3, adjust: 4, exp: 5 }
     : { content: 2, adjust: 3, exp: 4 };
+
+  const accent = useMemo(
+    () => ({ text: settings.accentText, show: settings.showAccent }),
+    [settings.accentText, settings.showAccent]
+  );
+
+  // ---- Restaurar el borrador guardado ----
+  useEffect(() => {
+    let cancelled = false;
+
+    loadDraft()
+      .then(({ photo, meta }) => {
+        if (cancelled) return;
+
+        if (meta) {
+          if (DEFAULT_LAYOUTS[meta.template]) setTemplate(meta.template);
+          if (typeof meta.text === 'string') setText(meta.text);
+          if (typeof meta.phrase === 'string') setMotivationalText(meta.phrase);
+          setCrop(cleanCrop(meta.crop));
+          setLayouts(cleanLayouts(meta.layouts));
+        }
+
+        if (photo?.blob) {
+          setImage({
+            url: URL.createObjectURL(photo.blob),
+            blob: photo.blob,
+            width: photo.width || 0,
+            height: photo.height || 0,
+          });
+        }
+
+        setHydrated(true);
+      })
+      .catch(() => setHydrated(true));
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    saveJSON('settings.v1', settings);
+  }, [settings]);
+
+  // ---- Guardado automático ----
+  useEffect(() => {
+    if (!hydrated) return;
+    const timer = setTimeout(() => {
+      saveDraftMeta({ template, text, phrase: motivationalText, crop, layouts });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [hydrated, template, text, motivationalText, crop, layouts]);
+
+  useEffect(() => {
+    if (!hydrated || !image?.blob) return;
+    saveDraftPhoto(image.blob, image.width, image.height);
+  }, [hydrated, image]);
+
+  useEffect(() => {
+    listHistory()
+      .then((list) => setHistoryCount(list.length))
+      .catch(() => {});
+  }, []);
 
   const missingPhoto = isGroup && !image;
   const missingPhrase = isGroup && !motivationalText.trim();
@@ -72,14 +181,40 @@ export default function App() {
     if (autoTemplate) setTemplate(autoTemplate);
   };
 
+  const saveToHistory = (blob, phrase) => {
+    (async () => {
+      const thumb = await makeThumbnail(blob).catch(() => null);
+      const entry = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        createdAt: Date.now(),
+        template,
+        phrase,
+        thumb,
+      };
+      await addHistory(entry, blob);
+      const list = await listHistory();
+      setHistoryCount(list.length);
+      setResult((prev) => (prev ? { ...prev, saved: true } : prev));
+    })().catch((err) => console.warn('No se pudo guardar en el historial', err));
+  };
+
   const handleGenerate = async () => {
     if (!canGenerate) return;
     setBusy(true);
     setNotice('');
     try {
-      const blob = await renderToBlob({ template, image, crop, text, motivationalText, layout });
+      const blob = await renderToBlob({
+        template,
+        image,
+        crop,
+        text,
+        motivationalText,
+        layout,
+        accent,
+      });
       const file = new File([blob], `hannyastudio-${Date.now()}.png`, { type: 'image/png' });
       setResult({ file, url: URL.createObjectURL(blob) });
+      saveToHistory(blob, (isGroup ? motivationalText : text).trim());
     } catch (err) {
       console.error(err);
       setNotice(err?.message || 'No se pudo generar la imagen.');
@@ -103,6 +238,23 @@ export default function App() {
         />
         <h1 className="text-2xl md:text-3xl font-bold tracking-wider text-amber-400">HANNYASTUDIO</h1>
         <p className="text-sm text-amber-200/70">Generador de imágenes para Jiu Jitsu</p>
+
+        <div className="mt-2 flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowHistory(true)}
+            className="px-3 py-1.5 rounded-full bg-zinc-900 text-amber-300 text-[11px] font-semibold border border-amber-500/30 cursor-pointer"
+          >
+            Historial{historyCount > 0 ? ` · ${historyCount}` : ''}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowSettings(true)}
+            className="px-3 py-1.5 rounded-full bg-zinc-900 text-amber-300 text-[11px] font-semibold border border-amber-500/30 cursor-pointer"
+          >
+            Ajustes
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 max-w-6xl w-full mx-auto grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 items-start">
@@ -114,6 +266,7 @@ export default function App() {
             motivationalText={motivationalText}
             layout={layout}
             crop={crop}
+            accent={accent}
             onCropChange={setCrop}
             previewRef={previewRef}
           />
@@ -133,7 +286,11 @@ export default function App() {
 
           <div className={isGroup ? '' : 'hidden'}>
             <Section step={steps.content} title="Frase motivadora">
-              <PhraseController onPhraseChange={setMotivationalText} />
+              <PhraseController
+                value={motivationalText}
+                onChange={setMotivationalText}
+                ready={hydrated}
+              />
             </Section>
           </div>
 
@@ -176,6 +333,21 @@ export default function App() {
       </main>
 
       {result && <ResultModal result={result} onClose={closeResult} />}
+
+      {showHistory && (
+        <HistoryModal
+          onClose={() => setShowHistory(false)}
+          onCountChange={setHistoryCount}
+        />
+      )}
+
+      {showSettings && (
+        <SettingsModal
+          settings={settings}
+          onChange={setSettings}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
     </div>
   );
 }

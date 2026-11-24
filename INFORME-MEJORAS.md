@@ -4,6 +4,14 @@ Fecha: 24 de noviembre de 2026
 Alcance: revisión completa del código en `hannyastudio-app` (React 19 + Vite 8 + Tailwind 4), de las plantillas gráficas y del flujo de trabajo real en iPhone.
 Estado del repositorio: rama `main`, sin cambios pendientes, último commit `6ac5257` (6 de noviembre de 2026), remoto en GitHub.
 
+## Estado de avance
+
+- Etapa 1, confiabilidad: terminada. Texto unificado entre previa y exportación, fuente garantizada, huecos precalculados, validaciones, ajuste automático de texto y limpieza.
+- Etapa 2, memoria y contenido: terminada. Borrador persistente, banco de frases editable con temas y favoritos, historial con miniaturas, ajustes de la academia.
+- Etapa 3, velocidad de producción: pendiente.
+- Etapa 4, app instalada (PWA offline): pendiente.
+- Etapa 5, crecimiento: pendiente.
+
 ---
 
 ## 1. Veredicto general

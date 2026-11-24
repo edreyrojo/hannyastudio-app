@@ -21,6 +21,20 @@ npm run preview  # sirve la versión compilada
 npm run lint     # oxlint
 ```
 
+## Qué guarda la app
+
+Todo se guarda en el teléfono, sin cuenta ni nube.
+
+- **Borrador**: foto, formato, frase, encuadre y ajustes de texto en IndexedDB.
+  Al abrir la app se restaura tal como quedó.
+- **Ajustes**: línea de acento en `localStorage`.
+- **Banco de frases**: en `localStorage`, con el avance del ciclo "sin repetir".
+- **Historial**: las últimas 24 imágenes generadas, con miniatura, en IndexedDB.
+  Se guardan solas al generar.
+
+Si se borran los datos del sitio desde el navegador, se pierde todo. El banco de
+frases se puede respaldar con el botón Exportar JSON.
+
 ## Cómo se arma una imagen
 
 1. **Marco**: un PNG de 1080 x 1920 en `public/templates/`.
@@ -39,11 +53,36 @@ Todo el estilo vive en `TEXT` dentro de `src/utils/textLayout.js`: familia, peso
 mayúsculas, espaciado entre letras, interlineado, colores, sombra, ancho máximo y
 tope de reducción. Se cambia ahí y aplica a la previa y al PNG.
 
+La **línea de acento** (el texto dorado debajo de la frase) se edita desde el
+botón Ajustes de la app y se guarda en el teléfono.
+
 Reglas que conviene respetar:
 
 - Usar una fuente con peso real. Anton solo tiene 400; pedir negrita hace que el
   navegador la invente y el canvas no, y la previa deja de coincidir.
 - El texto se reduce solo cuando no cabe. El tope está en `minScale`.
+
+## Banco de frases
+
+Cada frase tiene un texto, un tema y una marca de favorita.
+
+- **Otra frase** elige una frase del tema seleccionado que no se haya usado en el
+  ciclo actual. El ciclo avanza solo cuando se agotan las frases, así que no se
+  repiten aunque cierres la app.
+- **Banco** abre el administrador: agregar, editar, borrar, buscar, filtrar por
+  tema o favoritas, importar y exportar JSON, y restablecer las originales.
+- Si escribes una frase propia, el botón "Guardar esta frase en el banco" la
+  agrega.
+
+Los temas se definen en `src/utils/phraseBank.js` (`TAGS`). Al agregar una frase
+el tema se puede elegir a mano; las frases importadas sin tema válido se
+clasifican por palabras clave.
+
+## Historial
+
+Cada imagen que se genera se guarda en el historial del teléfono con una
+miniatura. Desde ahí se puede compartir, descargar o borrar. Se conservan las
+últimas 24; al pasar ese límite se descarta la más vieja.
 
 ## Agregar una plantilla nueva
 
@@ -109,20 +148,29 @@ nombres versionados (`vertical-v2.png`) y actualiza la entrada correspondiente.
 
 ```
 src/
-  App.jsx                    estado general y pasos de la interfaz
+  App.jsx                    estado general, borrador e historial
   components/
     CanvasPreview.jsx        vista previa con gestos de encuadre
     ImageUploader.jsx        galería y cámara
-    PhraseController.jsx     banco de frases
+    PhraseController.jsx     frase del día, tema y acceso al banco
+    PhraseBankModal.jsx      administrador del banco de frases
+    HistoryModal.jsx         historial de imágenes generadas
+    SettingsModal.jsx        línea de acento
+    Modal.jsx                contenedor común de ventanas emergentes
     TextControls.jsx         altura y tamaño del texto
     FramingControls.jsx      zoom del encuadre
     ResultModal.jsx          resultado, compartir y descargar
+  hooks/
+    usePhraseBank.js         estado y persistencia del banco
   utils/
     templates.js             tamaños, plantillas y huecos
     fitImage.js              encuadre de la foto dentro del hueco
     textLayout.js            motor de texto compartido (previa y export)
     exportImage.js           dibujo del PNG final
-    phrases.js               banco de frases
+    phraseBank.js            temas, clasificación y elección sin repetir
+    phrases.js               banco inicial de frases
+    storage.js               localStorage, IndexedDB y descargas
+    thumbnail.js             miniaturas del historial
 ```
 
 ## Despliegue

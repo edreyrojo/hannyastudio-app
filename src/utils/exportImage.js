@@ -81,7 +81,7 @@ function drawBlock(ctx, block) {
     ctx.shadowOffsetY = 0;
 }
 
-export async function renderToBlob({ template, image, crop, text, motivationalText, layout }) {
+export async function renderToBlob({ template, image, crop, text, motivationalText, layout, accent }) {
     await ensureFonts();
 
     const isGroup = template !== 'cartel';
@@ -131,6 +131,7 @@ export async function renderToBlob({ template, image, crop, text, motivationalTe
         phrase: motivationalText,
         layout,
         hole: tpl.hole,
+        accent,
     });
     drawBlock(ctx, plan.phrase);
     drawBlock(ctx, plan.accent);

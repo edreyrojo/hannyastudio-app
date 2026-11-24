@@ -133,11 +133,14 @@ function normalize(value) {
 
 // Calcula, en coordenadas de 1080 x 1920, dónde va cada línea de texto.
 // De aquí salen tanto la vista previa como el canvas de exportación.
-export function computeTextLayout({ template, text, phrase, layout, hole }) {
+export function computeTextLayout({ template, text, phrase, layout, hole, accent }) {
   const isGroup = template !== 'cartel';
   const content = normalize(isGroup ? phrase : text);
   const maxWidth = W * (isGroup ? TEXT.groupWidth : TEXT.cartelWidth);
   const basePx = (W * layout.size) / 1000;
+
+  const accentText = normalize(accent?.text ?? TEXT.accentText);
+  const showAccent = isGroup && (accent?.show ?? true) && Boolean(accentText);
 
   let bottomPx = 0;
   let topPx = 0;
@@ -152,9 +155,13 @@ export function computeTextLayout({ template, text, phrase, layout, hole }) {
     maxHeight = Math.max(0, H * TEXT.cartelBottom - topPx);
   }
 
-  const accentPx = isGroup ? basePx * TEXT.accentScale : 0;
+  const accentBase = showAccent ? basePx * TEXT.accentScale : 0;
+  const accentWidth = showAccent ? measureLine(accentText, accentBase) : 0;
+  const accentPx =
+    showAccent && accentWidth > maxWidth ? accentBase * (maxWidth / accentWidth) : accentBase;
+
   const accentLineH = accentPx * TEXT.accentLineHeight;
-  const gap = basePx * TEXT.gap;
+  const gap = showAccent ? basePx * TEXT.gap : 0;
   const available = Math.max(0, maxHeight - accentLineH - gap);
 
   const fitted = fitText({ text: content, maxWidth, maxHeight: available, basePx });
@@ -174,9 +181,9 @@ export function computeTextLayout({ template, text, phrase, layout, hole }) {
       top: phraseTop,
       color: isGroup ? TEXT.colors.phrase : TEXT.colors.cartel,
     },
-    accent: isGroup
+    accent: showAccent
       ? {
-          lines: [TEXT.accentText],
+          lines: [accentText],
           fontPx: accentPx,
           lineH: accentLineH,
           trackingPx: TEXT.tracking * accentPx,

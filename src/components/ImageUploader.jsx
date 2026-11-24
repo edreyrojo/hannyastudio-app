@@ -19,7 +19,7 @@ async function prepareImage(file) {
         canvas.getContext('2d').drawImage(img, 0, 0, width, height);
 
         const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
-        return { url: URL.createObjectURL(blob), width, height };
+        return { url: URL.createObjectURL(blob), blob, width, height };
     } finally {
         URL.revokeObjectURL(srcUrl);
     }

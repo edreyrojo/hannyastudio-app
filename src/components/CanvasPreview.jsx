@@ -4,7 +4,7 @@ import { TEMPLATES, W } from '../utils/templates';
 import { TEXT, blockStyle, computeTextLayout, fontString } from '../utils/textLayout';
 
 export function CanvasPreview({
-    image, template, text, motivationalText, layout, crop, onCropChange, previewRef,
+    image, template, text, motivationalText, layout, crop, accent, onCropChange, previewRef,
 }) {
     const [box, setBox] = useState({ w: 0, h: 0 });
     const [fontsReady, setFontsReady] = useState(false);
@@ -59,8 +59,9 @@ export function CanvasPreview({
             phrase: motivationalText,
             layout,
             hole,
+            accent,
         });
-    }, [box.w, fontsReady, template, text, motivationalText, layout, hole]);
+    }, [box.w, fontsReady, template, text, motivationalText, layout, hole, accent]);
 
     // El manejador de gestos necesita siempre el último estado sin provocar renders.
     useEffect(() => {

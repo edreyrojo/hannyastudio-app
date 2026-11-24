@@ -26,6 +26,9 @@ export function ResultModal({ result, onClose }) {
             />
 
             <div className="w-full max-w-sm mt-4 space-y-2">
+                {result.saved && (
+                    <p className="text-[11px] text-amber-500/70 text-center">Guardada en el historial.</p>
+                )}
                 {canShareFiles && (
                     <button
                         onClick={handleShare}
