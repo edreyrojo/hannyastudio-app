@@ -1,5 +1,6 @@
 import { Modal } from './Modal';
 import { TEXT } from '../utils/textLayout';
+import { DEFAULT_HASHTAGS } from '../utils/caption';
 
 export function SettingsModal({ settings, onChange, onClose }) {
     const update = (patch) => onChange({ ...settings, ...patch });
@@ -12,7 +13,7 @@ export function SettingsModal({ settings, onChange, onClose }) {
             footer={
                 <button
                     type="button"
-                    onClick={() => onChange({ accentText: TEXT.accentText, showAccent: true })}
+                    onClick={() => onChange({ accentText: TEXT.accentText, showAccent: true, hashtags: DEFAULT_HASHTAGS })}
                     className="w-full py-2 rounded-lg bg-zinc-900 text-amber-500/70 text-[10px] border border-amber-500/15 cursor-pointer"
                 >
                     Restablecer ajustes
@@ -45,6 +46,24 @@ export function SettingsModal({ settings, onChange, onClose }) {
                         />
                         <span className="text-[11px] text-amber-200/80">Mostrar línea de acento</span>
                     </label>
+                </div>
+
+                <div>
+                    <label htmlFor="hashtags" className="block text-[11px] text-amber-200/80 mb-1">
+                        Hashtags del pie de foto
+                    </label>
+                    <p className="text-[10px] text-amber-500/60 mb-2">
+                        Se copian junto con la frase cuando uses "Copiar pie de foto".
+                    </p>
+                    <textarea
+                        id="hashtags"
+                        rows={3}
+                        value={settings.hashtags}
+                        maxLength={300}
+                        onChange={(event) => update({ hashtags: event.target.value })}
+                        className="w-full p-2.5 bg-zinc-950 border border-amber-500/30 rounded-lg text-amber-100 text-xs outline-none focus:ring-1 focus:ring-amber-500 resize-none"
+                        placeholder={DEFAULT_HASHTAGS}
+                    />
                 </div>
 
                 <div className="rounded-lg border border-amber-500/15 bg-zinc-900/40 p-3">

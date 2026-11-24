@@ -1,13 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { usePhraseBank } from '../hooks/usePhraseBank';
 import { ALL_TAGS, TAGS, remainingCount } from '../utils/phraseBank';
 import { PhraseBankModal } from './PhraseBankModal';
 
-export function PhraseController({ value, onChange, ready }) {
-    const bankApi = usePhraseBank();
-    const { bank, next, markUsed, add } = bankApi;
+export function PhraseController({ api, tag, onTagChange, value, onChange, ready }) {
+    const { bank, next, markUsed, add } = api;
 
-    const [tag, setTag] = useState(ALL_TAGS);
     const [bankOpen, setBankOpen] = useState(false);
     const didInit = useRef(false);
 
@@ -61,7 +58,7 @@ export function PhraseController({ value, onChange, ready }) {
                 <select
                     id="phrase-tag"
                     value={tag}
-                    onChange={(event) => setTag(event.target.value)}
+                    onChange={(event) => onTagChange(event.target.value)}
                     className="flex-1 min-w-0 p-2 bg-zinc-950 border border-amber-500/30 rounded-lg text-amber-100 text-[11px] outline-none"
                 >
                     <option value={ALL_TAGS}>Todas</option>
@@ -110,7 +107,7 @@ export function PhraseController({ value, onChange, ready }) {
 
             {bankOpen && (
                 <PhraseBankModal
-                    api={bankApi}
+                    api={api}
                     onUse={handleUseFromBank}
                     onClose={() => setBankOpen(false)}
                 />

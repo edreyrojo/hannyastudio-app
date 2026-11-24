@@ -25,7 +25,9 @@ export function saveJSON(key, value) {
 }
 
 const DB_NAME = 'hannyastudio';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
+
+export const MAX_PHOTOS = 12;
 
 let dbPromise = null;
 
@@ -49,6 +51,9 @@ function openDB() {
             }
             if (!db.objectStoreNames.contains('files')) {
                 db.createObjectStore('files', { keyPath: 'id' });
+            }
+            if (!db.objectStoreNames.contains('photos')) {
+                db.createObjectStore('photos', { keyPath: 'id' });
             }
         };
         request.onsuccess = () => resolve(request.result);
@@ -139,6 +144,44 @@ export async function deleteHistory(id) {
 export async function clearHistory() {
     await idb.clear('history');
     await idb.clear('files');
+}
+
+// ---- Biblioteca de fotos ----
+
+export async function listPhotos() {
+    const all = await idb.getAll('photos').catch(() => []);
+    return all.sort((a, b) => b.createdAt - a.createdAt);
+}
+
+export function getPhotoBlob(id) {
+    return idb.get('photos', id).then((row) => row?.blob ?? null);
+}
+
+export function deletePhoto(id) {
+    return idb.remove('photos', id).catch(() => null);
+}
+
+// Guarda la foto preparada. Si ya existe una del mismo tamaño, devuelve esa
+// en lugar de duplicarla. Mantiene las últimas MAX_PHOTOS.
+export async function addPhoto(entry) {
+    const all = await idb.getAll('photos');
+    const existing = all.find((photo) => photo.size === entry.size);
+    if (existing) return existing;
+
+    await idb.put('photos', entry);
+
+    const next = [...all, entry];
+    if (next.length > MAX_PHOTOS) {
+        const oldest = next
+            .sort((a, b) => a.createdAt - b.createdAt)
+            .slice(0, next.length - MAX_PHOTOS);
+
+        for (const photo of oldest) {
+            await idb.remove('photos', photo.id);
+        }
+    }
+
+    return entry;
 }
 
 // ---- Utilidades de archivo ----

@@ -27,8 +27,10 @@ Todo se guarda en el teléfono, sin cuenta ni nube.
 
 - **Borrador**: foto, formato, frase, encuadre y ajustes de texto en IndexedDB.
   Al abrir la app se restaura tal como quedó.
-- **Ajustes**: línea de acento en `localStorage`.
+- **Ajustes**: línea de acento y hashtags en `localStorage`.
 - **Banco de frases**: en `localStorage`, con el avance del ciclo "sin repetir".
+- **Biblioteca de fotos**: las últimas 12 fotos subidas, con miniatura, en
+  IndexedDB. Se puede cambiar de foto sin volver a subirla.
 - **Historial**: las últimas 24 imágenes generadas, con miniatura, en IndexedDB.
   Se guardan solas al generar.
 
@@ -77,6 +79,27 @@ Cada frase tiene un texto, un tema y una marca de favorita.
 Los temas se definen en `src/utils/phraseBank.js` (`TAGS`). Al agregar una frase
 el tema se puede elegir a mano; las frases importadas sin tema válido se
 clasifican por palabras clave.
+
+## Lote de la semana
+
+En la sección Exportar se elige 3, 5 o 7. La app toma esa cantidad de frases del
+tema activo, una por imagen, y genera todas con el mismo encuadre y formato. Al
+terminar se abre una galería con las imágenes para compartir, descargar o copiar
+el pie de cada una. Todas quedan en el historial.
+
+## Biblioteca de fotos
+
+Cada foto que se sube se guarda en el teléfono (máximo 12). La tira de
+miniaturas aparece en la sección Foto: se toca una para volver a usarla sin pasar
+por la galería del teléfono. Para borrar una, se toca la × y se confirma con el
+mismo botón.
+
+## Pie de foto
+
+El botón "Copiar pie de foto" del resultado copia la frase de la imagen y los
+hashtags configurados en Ajustes, separados por una línea en blanco. Si iOS
+bloquea el portapapeles, la app muestra el texto en un campo para que lo
+selecciones y lo copies a mano.
 
 ## Historial
 
@@ -152,14 +175,16 @@ src/
   components/
     CanvasPreview.jsx        vista previa con gestos de encuadre
     ImageUploader.jsx        galería y cámara
+    PhotoStrip.jsx           biblioteca de fotos guardadas
     PhraseController.jsx     frase del día, tema y acceso al banco
     PhraseBankModal.jsx      administrador del banco de frases
     HistoryModal.jsx         historial de imágenes generadas
-    SettingsModal.jsx        línea de acento
+    BatchModal.jsx           resultado del lote de la semana
+    SettingsModal.jsx        línea de acento y hashtags
     Modal.jsx                contenedor común de ventanas emergentes
     TextControls.jsx         altura y tamaño del texto
     FramingControls.jsx      zoom del encuadre
-    ResultModal.jsx          resultado, compartir y descargar
+    ResultModal.jsx          resultado, siguiente frase, compartir y descargar
   hooks/
     usePhraseBank.js         estado y persistencia del banco
   utils/
@@ -169,8 +194,9 @@ src/
     exportImage.js           dibujo del PNG final
     phraseBank.js            temas, clasificación y elección sin repetir
     phrases.js               banco inicial de frases
+    caption.js               pie de foto y copiado al portapapeles
     storage.js               localStorage, IndexedDB y descargas
-    thumbnail.js             miniaturas del historial
+    thumbnail.js             miniaturas del historial y la biblioteca
 ```
 
 ## Despliegue
